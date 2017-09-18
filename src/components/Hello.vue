@@ -2,31 +2,39 @@
   <div class="hello">
     <section class="section">
       <div class="container">
-        <!-- <span v-bind:class="dayChange(props.row.change24Pct)" class="tag is-large is-pulled-right">${{total.current | round(2) || 0}}</span> -->
-        <div class="tag is-large is-pulled-left">
-          <span>{{portfolio.name}}</span>
+        <div class="control is-pulled-left">
+          <div class="tags has-addons">
+            <span class="tag is-large">{{portfolio.name}} Checked @ {{updated}}</span>
+            <a v-on:click="toggleAutoUpdate()" class="is-large" v-bind:class="isAutoUpdate()">AutoUpdate</a>
+          </div>
         </div>
         <div class="tag is-large is-pulled-right">
-          <span>${{total.current.toLocaleString() || 0}}</span>
-          <span v-bind:class="dayChange(total.current, total.yesterday)">&nbsp;(${{total.change.toLocaleString() || 0}}) </span>&nbsp;24h
+          <span>${{portfolio.total.current.toLocaleString() || 0}}</span>
+          <span v-bind:class="change(portfolio.total.current, portfolio.total.last)">&nbsp;(${{portfolio.total.change.toLocaleString() || 0}}) </span>&nbsp;24h
         </div>
       </div>
     </section>
     <section class="section">
       <div class="container">
-        <b-table :data="holdings">
+        <b-table :data="portfolio.coins">
           <template scope="props">
             <b-table-column label="Symbol">
               {{ props.row.symbol }}
             </b-table-column>
-            <b-table-column label="Price" numeric>
-              ${{ props.row.price.toLocaleString() || 0 }}
-            </b-table-column>
             <b-table-column label="Amount" numeric>
               {{ props.row.amount | round(4) || 0 }}
             </b-table-column>
+            <b-table-column label="Cost" numeric>
+              ${{ props.row.cost_usd.toLocaleString() || 0}}
+            </b-table-column>
+            <b-table-column label="Price" numeric>
+              ${{ props.row.price.toLocaleString() || 0 }}
+            </b-table-column>
             <b-table-column label="Value" numeric>
               ${{ props.row.value.toLocaleString() || 0}}
+            </b-table-column>
+            <b-table-column label="Profit" numeric>
+              <span v-bind:class="isPositive(props.row.profit_usd)">${{props.row.profit_usd.toLocaleString() || 0}}</span>
             </b-table-column>
             <b-table-column label="24h" numeric>
               <span v-bind:class="isPositive(props.row.change24Pct)">{{ props.row.change24Pct | round(2) || 0}}%</span>
@@ -35,10 +43,13 @@
         </b-table>
       </div>
     </section>
-    <section class="section">
-      <div class="container">
+    <section class="section is-hidden-touch">
+      <div class="container plot">
+        <div style="position: absolute;bottom: 0;" class="columns is-gapless is-centered is-desktop">
+          <div v-for="(value, index) in portfolio.plot" class="rotated"><span v-bind:class="change(value, portfolio.plot[index-1])">{{calc(value)}}</span></div>
+        </div>
         <!-- <line-chart :options="{responsive: true, maintainAspectRatio: false}" :height="200" :chart-data="datacollection"></line-chart>
-        <button @click="fillData()">Randomize</button> -->
+          <button @click="fillData()">Randomize</button> -->
       </div>
     </section>
   </div>
@@ -47,6 +58,7 @@
 <script>
   import LineChart from './LineChart.js'
   import axios from 'axios'
+  import moment from 'moment'
 
   export default {
     components: {
@@ -55,34 +67,61 @@
     name: 'hello',
     data () {
       return {
-        portfolio: {},
-        holdings: [],
-        total: {
-          current: 0,
-          yesterday: 0,
-          change: 0
+        interval: null,
+        min: 0,
+        max: 0,
+        diff: 0,
+        updated: '',
+        portfolio: {
+          name: '',
+          total: {
+            current: 0,
+            last: 0,
+            change: 0,
+            cost_usd: 0
+          },
+          coins: []
         }
+
       }
     },
-    mounted () {
-      var self = this
-      axios.get('http://localhost:9000/portfolios/59bef8f02e48837e43df3d2d/value')
-        .then(function (response) {
-          console.log(response)
-          self.holdings = response.data.coins
-          self.total = response.data.total
-          self.portfolio = response.data.portfolio
-        })
-        .catch(function (error) {
-          console.log(error)
-        })
+    created: function () {
+      this.getPortfolio()
+    },
+    mounted: function () {
+      this.getPortfolioValue()
+      this.interval = setInterval(function () {
+        this.getPortfolioValue()
+      }.bind(this), 6000)
     },
     methods: {
-      dayChange (current, yesterday) {
+      calc (n) {
+        var string = '*'
+        var base = 0
+        var floor = n - this.min
+
+        if (this.diff > 1000) {
+          base = floor / 100
+        } else if (this.diff > 100) {
+          base = floor / 10
+        } else if (this.diff > 10) {
+          base = floor / 1
+        } else if (this.diff > 1) {
+          base = floor
+        }
+
+        // base = base / 2
+
+        for (var i = 0; i < base; i++) {
+          string += '*'
+        }
+        return string
+      },
+      change (current, last) {
         return {
-          'has-text-danger': current < yesterday,
-          'has-text-info': current === yesterday,
-          'has-text-success': current > yesterday
+          'has-text-danger': current < last,
+          // 'has-text-info': current === last,
+          'has-text-success': current >= last
         }
       },
       isPositive (value) {
@@ -91,28 +130,54 @@
           'has-text-success': value > 0
         }
       },
-      fillData () {
-        // this.datacollection = {
-        //   labels: [this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(),
-        //     this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt()
-        //   ],
-        //   datasets: [{
-        //     label: 'Performance',
-        //     backgroundColor: '#f87979',
-        //     data: [this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(),
-        //       this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt()
-        //     ]
-        //   }, {
-        //     label: 'Market',
-        //     backgroundColor: '#3a2835',
-        //     data: [this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt(),
-        //       this.getRandomInt(), this.getRandomInt(), this.getRandomInt(), this.getRandomInt()
-        //     ]
-        //   }]
-        // }
+      isAutoUpdate () {
+        return {
+          'tag is-success': this.interval > 0,
+          'tag is-danger': this.interval == null
+        }
       },
-      getRandomInt () {
-        return Math.floor(Math.random() * (50 - 5 + 1)) + 5
+      getPortfolio () {
+        var self = this
+        axios.get('http://localhost:9000/portfolios/59bef8f02e48837e43df3d2d')
+          .then(function (response) {
+            self.genPlot(response)
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
+      },
+      getPortfolioValue () {
+        var self = this
+        axios.get('http://localhost:9000/portfolios/59bef8f02e48837e43df3d2d/value')
+          .then(function (response) {
+            console.log(response)
+            self.genPlot(response)
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
+      },
+      genPlot (response) {
+        var self = this
+        if (response.data.total.current > 0) {
+          self.portfolio = response.data
+          self.updated = moment(self.portfolio.updatedAt).format('h:mm:ss')
+          self.min = Math.min.apply(null, self.portfolio.plot)
+          self.max = Math.max.apply(null, self.portfolio.plot)
+          self.diff = self.max - self.min
+        } else {
+          console.log('error getting value')
+        }
+      },
+      toggleAutoUpdate () {
+        if (this.interval) {
+          clearInterval(this.interval)
+          this.interval = null
+        } else {
+          this.interval = setInterval(function () {
+            this.getPortfolioValue()
+          }.bind(this), 10000)
+        }
       }
     },
     filters: {
@@ -135,7 +200,18 @@
         }
         value = value.toFixed(decimals)
         return value
+      },
+      formatDate (value) {
+        if (value) {
+          return moment(String(value)).format('MM/DD/YYYY hh:mm')
+        }
+      },
+      limit (arr, limit) {
+        return arr.slice(0, limit)
       }
+    },
+    beforeDestroy: function () {
+      clearInterval(this.interval)
     }
   }
 
@@ -143,6 +219,18 @@
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
   .hello {}
+
+  .plot {
+    left: 0px;
+    bottom: 0px;
+    height: 300px;
+    width: 100%;
+  }
+
+  .rotated {
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+  }
 
   .table {
     background-color: none!important;
