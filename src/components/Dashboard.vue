@@ -1,5 +1,5 @@
 <template>
-  <div class="hello">
+  <div class="dashboard">
     <section class="section">
       <div class="container">
         <nav class="level">
@@ -29,7 +29,7 @@
     </section>
     <section class="section">
       <div class="container">
-        <b-table :data="portfolio.coins">
+        <b-table :data="portfolio.coins" detailed>
           <template scope="props">
             <b-table-column label="Symbol">
               {{ props.row.symbol }}
@@ -53,7 +53,44 @@
               <span v-bind:class="isPositive(props.row.change24Pct)">{{ props.row.change24Pct | round(2) || 0}}%</span>
             </b-table-column>
           </template>
+          <template slot="detail" scope="props">
+            <section>
+              <div class="field has-addons has-addons-centered">
+                <p class="control">
+                  <b-field>
+                    <b-input type="number" v-model="props.row.amount"></b-input>
+                    <p class="control">
+                      <span class="button is-static">Amount</span>
+                    </p>
+                  </b-field>
+                </p>
+                <p class="control">
+                  <b-field>
+                    <b-input type="number" v-model="props.row.cost_usd"></b-input>
+                    <p class="control">
+                      <span class="button is-static">Cost Each</span>
+                    </p>
+                  </b-field>
+                </p>
+              </div>
+
+              <b-field grouped group-multiline position="is-centered">
+                <p class="control">
+                  <button v-on:click="saveCoin(props.index, props.row)" class="button is-primary">Save</button>
+                </p>
+                <p class="control">
+                  <button v-on:click="deleteCoin(props.index)" class="button is-danger">Delete</button>
+                </p>
+              </b-field>
+            </section>
+          </template>
         </b-table>
+        <div class="container">
+          <br>
+          <button class="button is-small is-dark is-pulled-right" @click="prompt">
+                Add Coin
+            </button>
+        </div>
       </div>
     </section>
     <section class="section is-hidden-touch">
@@ -69,15 +106,12 @@
 </template>
 
 <script>
-  import LineChart from './LineChart.js'
   import axios from 'axios'
   import moment from 'moment'
 
   export default {
-    components: {
-      LineChart
-    },
-    name: 'hello',
+    components: {},
+    name: 'dashboard',
     data () {
       return {
         interval: null,
@@ -134,6 +168,65 @@
         }
         return string
       },
+      saveCoin (index, coin) {
+        var self = this
+        console.log('index: ', index)
+        console.log('coin: ', coin)
+        self.portfolio.coins[index].amount = coin.amount
+        self.portfolio.coins[index].cost_usd = coin.cost_usd
+        axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
+          .then(function (response) {
+            console.log('response: ', response)
+            self.getPortfolioValue()
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
+      },
+      deleteCoin (index) {
+        var self = this
+        console.log('index: ', index)
+        self.portfolio.coins.splice(index, 1)
+        axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
+          .then(function (response) {
+            console.log('response: ', response)
+            self.getPortfolioValue()
+          })
+          .catch(function (error) {
+            console.log(error)
+          })
+      },
+      prompt () {
+        this.$dialog.prompt({
+          message: `What is the ticker symbol?`,
+          inputMaxlength: 6,
+          inputPlaceholder: 'e.g. ETH',
+          onConfirm: (value) => {
+            var self = this
+            self.portfolio.coins.push({
+              'symbol': value,
+              'profit_usd': 0,
+              'value': 0,
+              'change24Pct': 0,
+              'change24': 0,
+              'price': 0,
+              'cost_btc': 0,
+              'cost_eth': 0,
+              'cost_usd': 0,
+              'total_cost_usd': 0,
+              'amount': 0
+            })
+            axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
+              .then(function (response) {
+                this.$toast.open('Added ' + value)
+                self.getPortfolioValue()
+              })
+              .catch(function (error) {
+                console.log(error)
+              })
+          }
+        })
+      },
       change (current, last) {
         return {
           'has-text-danger': current < last,
@@ -155,7 +248,7 @@
       },
       getPortfolio () {
         var self = this
-        axios.get('http://localhost:9000/portfolios/59bef8f02e48837e43df3d2d')
+        axios.get('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e')
           .then(function (response) {
             self.genPlot(response)
           })
@@ -165,7 +258,7 @@
       },
       getPortfolioValue () {
         var self = this
-        axios.get('http://localhost:9000/portfolios/59bef8f02e48837e43df3d2d/value')
+        axios.get('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e/value')
           .then(function (response) {
             console.log(response)
             self.genPlot(response)
@@ -216,16 +309,7 @@
     },
     filters: {
       round (value, decimals) {
-        if (!value) {
-          value = 0
-        }
-        if (!decimals) {
-          decimals = 0
-        }
-        value = value.toFixed(decimals)
-        return value
-      },
-      currency (value, decimals) {
+        value = parseInt(value)
         if (!value) {
           value = 0
         }
@@ -252,7 +336,7 @@
 </script>
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .hello {}
+  .dashboard {}
 
   .plot {
     /* left: 0px;
@@ -273,6 +357,12 @@
 
   .table th {
     color: whitesmoke;
+  }
+
+  .title {
+    font-weight: 900;
+    font-style: normal;
+    font-size: 50px;
   }
 
 </style>

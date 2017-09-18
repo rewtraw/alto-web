@@ -3,8 +3,9 @@
     <section class="hero is-dark">
       <div class="hero-body">
         <div class="container">
-          <h1 class="title">
-            <b>Alto!</b>
+          <h1 class="logo">
+            <b v-on:click="goHome()">Alto!</b>
+            <b class="is-pulled-right"><router-link to="portfolio">+</router-link></b>
           </h1>
         </div>
       </div>
@@ -15,13 +16,24 @@
 
 <script>
   export default {
-    name: 'app'
+    name: 'app',
+    data () {
+      return {}
+    },
+    created: function () {},
+    mounted: function () {},
+    methods: {
+      goHome () {
+        this.$router.push('/')
+      }
+    }
   }
 
 </script>
 
 <style>
   @import url('https://fonts.googleapis.com/css?family=Alegreya:900|Source+Code+Pro');
+  @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
   #app {
     font-family: 'Source Code Pro', monospace;
     -webkit-font-smoothing: antialiased;
@@ -53,12 +65,12 @@
     color: #42b983;
   }
 
-  .title {
-    text-decoration: wavy overline hsla(198, 24%, 49%, 0.9);
+  .logo {
+    text-decoration: wavy overline hsla(198, 24%, 49%, 0.9)!important;
     font-weight: 900;
     font-style: normal;
     font-size: 50px;
-    margin-top: 30px
+    margin-top: 20px
   }
 
 </style>
