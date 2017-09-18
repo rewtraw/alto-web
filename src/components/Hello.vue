@@ -2,16 +2,29 @@
   <div class="hello">
     <section class="section">
       <div class="container">
-        <div class="control is-pulled-left">
-          <div class="tags has-addons">
-            <span class="tag is-large">{{portfolio.name}} Checked @ {{updated}}</span>
-            <a v-on:click="toggleAutoUpdate()" class="is-large" v-bind:class="isAutoUpdate()">AutoUpdate</a>
+        <nav class="level">
+          <div class="level-left">
+            <div class="level-item">
+              <div class="control">
+                <div class="tags has-addons">
+                  <span class="tag is-large">{{portfolio.name}}<span class="is-hidden-touch">&nbsp;Checked @ {{updated}}</span>                  </span>
+                  <a v-on:click="toggleAutoUpdate()" class="is-large is-hidden-touch" v-bind:class="isAutoUpdate()">AutoUpdate</a>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="tag is-large is-pulled-right">
-          <span>${{portfolio.total.current.toLocaleString() || 0}}</span>
-          <span v-bind:class="change(portfolio.total.current, portfolio.total.last)">&nbsp;(${{portfolio.total.change.toLocaleString() || 0}}) </span>&nbsp;24h
-        </div>
+          <div class="level-right">
+            <div class="level-item">
+              <div class="control">
+                <div class="tags has-addons">
+                  <span class="tag is-large">${{portfolio.total.current.toLocaleString() || 0}}
+                  <span v-bind:class="change(showTotalCurrentValue, showTotalPreviousValue)">&nbsp;(${{showTotalValue.toLocaleString() || 0}})</span></span>
+                  <a v-on:click="toggleTotalDisplay()" class="tag is-large is-info is-hidden-touch">{{showTotal}}</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
       </div>
     </section>
     <section class="section">
@@ -45,7 +58,7 @@
     </section>
     <section class="section is-hidden-touch">
       <div class="container plot">
-        <div style="position: absolute;bottom: 0;" class="columns is-gapless is-centered is-desktop">
+        <div class="columns is-gapless is-centered is-desktop">
           <div v-for="(value, index) in portfolio.plot" class="rotated"><span v-bind:class="change(value, portfolio.plot[index-1])">{{calc(value)}}</span></div>
         </div>
         <!-- <line-chart :options="{responsive: true, maintainAspectRatio: false}" :height="200" :chart-data="datacollection"></line-chart>
@@ -72,6 +85,10 @@
         max: 0,
         diff: 0,
         updated: '',
+        showTotal: 'Profit',
+        showTotalValue: 0,
+        showTotalCurrentValue: 0,
+        showTotalPreviousValue: 0,
         portfolio: {
           name: '',
           total: {
@@ -90,9 +107,9 @@
     },
     mounted: function () {
       this.getPortfolioValue()
-      this.interval = setInterval(function () {
-        this.getPortfolioValue()
-      }.bind(this), 6000)
+      // this.interval = setInterval(function () {
+      //   this.getPortfolioValue()
+      // }.bind(this), 6000)
     },
     methods: {
       calc (n) {
@@ -110,7 +127,7 @@
           base = floor
         }
 
-        // base = base / 2
+        base = base / 2
 
         for (var i = 0; i < base; i++) {
           string += '*'
@@ -161,6 +178,10 @@
         var self = this
         if (response.data.total.current > 0) {
           self.portfolio = response.data
+          self.showTotal = 'Profit'
+          self.showTotalValue = self.portfolio.total.profit_usd
+          self.showTotalCurrentValue = self.portfolio.total.current
+          self.showTotalPreviousValue = self.portfolio.total.cost_usd
           self.updated = moment(self.portfolio.updatedAt).format('h:mm:ss')
           self.min = Math.min.apply(null, self.portfolio.plot)
           self.max = Math.max.apply(null, self.portfolio.plot)
@@ -177,6 +198,19 @@
           this.interval = setInterval(function () {
             this.getPortfolioValue()
           }.bind(this), 10000)
+        }
+      },
+      toggleTotalDisplay () {
+        if (this.showTotal === 'Profit') {
+          this.showTotal = '24h'
+          this.showTotalValue = this.portfolio.total.change
+          this.showTotalCurrentValue = this.portfolio.total.current
+          this.showTotalPreviousValue = this.portfolio.total.yesterday
+        } else {
+          this.showTotal = 'Profit'
+          this.showTotalValue = this.portfolio.total.profit_usd
+          this.showTotalCurrentValue = this.portfolio.total.current
+          this.showTotalPreviousValue = this.portfolio.total.cost_usd
         }
       }
     },
@@ -221,9 +255,9 @@
   .hello {}
 
   .plot {
-    left: 0px;
-    bottom: 0px;
-    height: 300px;
+    /* left: 0px;
+    bottom: 0px; */
+    height: 100%;
     width: 100%;
   }
 
