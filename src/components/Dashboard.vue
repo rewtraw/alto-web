@@ -1,14 +1,33 @@
 <template>
+
   <div class="dashboard">
-    <section class="section">
+    <section v-if="!portfolios.length" class="section">
+      <div class="container has-text-centered">
+        <a @click="addPortfolio" class="button is-primary">New Portfolio</a>
+      </div>
+    </section>
+    <section v-if="portfolios.length" class="section">
       <div class="container">
         <nav class="level">
           <div class="level-left">
             <div class="level-item">
               <div class="control">
+                <b-field grouped>
+                  <b-select v-on:change="changePortfolio()" v-model="p_id" placeholder="Select a Portfolio">
+                    <option v-for="option in portfolios" :value="option._id" :key="option._id">
+                      {{ option.name }}
+                    </option>
+                  </b-select>
+                </b-field>
+              </div>
+            </div>
+            <div class="level-item">
+              <div class="control">
                 <div class="tags has-addons">
-                  <span class="tag is-large">{{portfolio.name}}<span class="is-hidden-touch">&nbsp;Checked @ {{updated}}</span>                  </span>
-                  <a v-on:click="toggleAutoUpdate()" class="is-large is-hidden-touch" v-bind:class="isAutoUpdate()">AutoUpdate</a>
+                  <span class="tag is-medium">
+                    <span>Checked @ {{updated}}</span>
+                  </span>
+                  <a v-on:click="toggleAutoUpdate()" class="tag is-medium is-hidden-touch" v-bind:class="isAutoUpdate()">↻</a>
                 </div>
               </div>
             </div>
@@ -17,9 +36,16 @@
             <div class="level-item">
               <div class="control">
                 <div class="tags has-addons">
-                  <span class="tag is-large">${{portfolio.total.current.toLocaleString() || 0}}
+                  <span class="tag is-medium">MCAP: ${{mcap.toLocaleString() || 0}}</span>
+                </div>
+              </div>
+            </div>
+            <div class="level-item">
+              <div class="control">
+                <div class="tags has-addons">
+                  <span class="tag is-medium">${{portfolio.total.current.toLocaleString() || 0}}
                   <span v-bind:class="change(showTotalCurrentValue, showTotalPreviousValue)">&nbsp;(${{showTotalValue.toLocaleString() || 0}})</span></span>
-                  <a v-on:click="toggleTotalDisplay()" class="tag is-large is-info is-hidden-touch">{{showTotal}}</a>
+                  <a v-on:click="toggleTotalDisplay()" class="tag is-medium is-info is-hidden-touch">{{showTotal}}</a>
                 </div>
               </div>
             </div>
@@ -27,12 +53,12 @@
         </nav>
       </div>
     </section>
-    <section class="section">
+    <section v-if="portfolios.length && portfolio.coins.length" class="section">
       <div class="container">
-        <b-table :data="portfolio.coins" detailed>
+        <b-table class="table" :data="portfolio.coins" detailed mobile-cards>
           <template scope="props">
             <b-table-column label="Symbol">
-              {{ props.row.symbol }}
+              <a v-bind:href="'https://www.cryptocompare.com/coins/'+props.row.symbol" target="_blank">{{ props.row.symbol }} </a>
             </b-table-column>
             <b-table-column label="Amount" numeric>
               {{ props.row.amount | round(4) || 0 }}
@@ -58,7 +84,7 @@
               <div class="field has-addons has-addons-centered">
                 <p class="control">
                   <b-field>
-                    <b-input type="number" v-model="props.row.amount"></b-input>
+                    <b-input v-model="props.row.amount"></b-input>
                     <p class="control">
                       <span class="button is-static">Amount</span>
                     </p>
@@ -66,14 +92,13 @@
                 </p>
                 <p class="control">
                   <b-field>
-                    <b-input type="number" v-model="props.row.cost_usd"></b-input>
+                    <b-input v-model="props.row.cost_usd"></b-input>
                     <p class="control">
                       <span class="button is-static">Cost Each</span>
                     </p>
                   </b-field>
                 </p>
               </div>
-
               <b-field grouped group-multiline position="is-centered">
                 <p class="control">
                   <button v-on:click="saveCoin(props.index, props.row)" class="button is-primary">Save</button>
@@ -85,35 +110,39 @@
             </section>
           </template>
         </b-table>
-        <div class="container">
+        <div class="container has-text-centered">
           <br>
           <button class="button is-small is-dark is-pulled-right" @click="prompt">
-                Add Coin
-            </button>
+              Add Coin
+          </button>
         </div>
       </div>
     </section>
-    <section class="section is-hidden-touch">
+    <section v-if="p_id && !portfolio.coins.length" class="section">
+      <div class="container has-text-centered">
+        <a @click="prompt" class="button is-primary">Add Coin</a>
+      </div>
+    </section>
+    <section v-if="showTotalValue" class="section is-hidden-touch">
       <div class="container plot">
         <div class="columns is-gapless is-centered is-desktop">
           <div v-for="(value, index) in portfolio.plot" class="rotated"><span v-bind:class="change(value, portfolio.plot[index-1])">{{calc(value)}}</span></div>
         </div>
-        <!-- <line-chart :options="{responsive: true, maintainAspectRatio: false}" :height="200" :chart-data="datacollection"></line-chart>
-          <button @click="fillData()">Randomize</button> -->
       </div>
     </section>
   </div>
 </template>
 
 <script>
-  import axios from 'axios'
   import moment from 'moment'
+  import ApiService from '../services'
 
   export default {
     components: {},
     name: 'dashboard',
     data () {
       return {
+        base_url: process.env.API_URL || 'localhost',
         interval: null,
         min: 0,
         max: 0,
@@ -123,6 +152,8 @@
         showTotalValue: 0,
         showTotalCurrentValue: 0,
         showTotalPreviousValue: 0,
+        p_id: '',
+        portfolios: [],
         portfolio: {
           name: '',
           total: {
@@ -132,20 +163,42 @@
             cost_usd: 0
           },
           coins: []
-        }
-
+        },
+        mcap: 0
       }
     },
-    created: function () {
-      this.getPortfolio()
-    },
+    created: function () {},
     mounted: function () {
-      this.getPortfolioValue()
+      this.fetchPortfolios()
+      this.getMarketCap()
+      // this.getPortfolioValue()
+      // this.getPortfolio()
+
       // this.interval = setInterval(function () {
       //   this.getPortfolioValue()
       // }.bind(this), 6000)
     },
+    watch: {
+      // whenever question changes, this function will run
+      p_id: function () {
+        var self = this
+        self.getPortfolio()
+      }
+    },
     methods: {
+      fetchPortfolios () {
+        return ApiService.getPortfolios()
+          .then(response => {
+            this.portfolios = response.data
+            console.log('this.portfolios: ', this.portfolios)
+            if (this.portfolios.length) {
+              this.portfolio = response.data[0]
+              this.p_id = this.portfolio._id
+            } else {
+              this.noProfile = true
+            }
+          })
+      },
       calc (n) {
         var string = '*'
         var base = 0
@@ -157,8 +210,14 @@
           base = floor / 10
         } else if (this.diff > 10) {
           base = floor / 1
-        } else if (this.diff > 1) {
+        } else if (this.diff > 0) {
           base = floor
+        } else if (this.diff <= 0) {
+          base = floor * 10
+        } else if (this.diff < -10) {
+          base = floor * 100
+        } else if (this.diff < -100) {
+          base = floor * 1000
         }
 
         base = base / 2
@@ -170,30 +229,19 @@
       },
       saveCoin (index, coin) {
         var self = this
-        console.log('index: ', index)
-        console.log('coin: ', coin)
         self.portfolio.coins[index].amount = coin.amount
         self.portfolio.coins[index].cost_usd = coin.cost_usd
-        axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
-          .then(function (response) {
-            console.log('response: ', response)
+        return ApiService.savePortfolio(self.portfolio)
+          .then(response => {
             self.getPortfolioValue()
-          })
-          .catch(function (error) {
-            console.log(error)
           })
       },
       deleteCoin (index) {
         var self = this
-        console.log('index: ', index)
         self.portfolio.coins.splice(index, 1)
-        axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
-          .then(function (response) {
-            console.log('response: ', response)
+        return ApiService.savePortfolio(self.portfolio)
+          .then(response => {
             self.getPortfolioValue()
-          })
-          .catch(function (error) {
-            console.log(error)
           })
       },
       prompt () {
@@ -216,13 +264,9 @@
               'total_cost_usd': 0,
               'amount': 0
             })
-            axios.put('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e', self.portfolio)
-              .then(function (response) {
-                this.$toast.open('Added ' + value)
+            return ApiService.savePortfolio(self.portfolio)
+              .then(response => {
                 self.getPortfolioValue()
-              })
-              .catch(function (error) {
-                console.log(error)
               })
           }
         })
@@ -246,31 +290,58 @@
           'tag is-danger': this.interval == null
         }
       },
-      getPortfolio () {
+      getMarketCap () {
         var self = this
-        axios.get('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e')
+        return ApiService.getMarketCap()
           .then(function (response) {
-            self.genPlot(response)
+            console.log('MARKET CAP: ', response)
+            self.mcap = response.data.total_market_cap_usd
           })
           .catch(function (error) {
+            console.log(error)
+          })
+      },
+      addPortfolio () {
+        this.$dialog.prompt({
+          message: `Give your portfolio a name.`,
+          inputPlaceholder: 'e.g. To the Moon!',
+          onConfirm: (value) => {
+            var newPortfolio = {
+              'name': value
+            }
+            return ApiService.addPortfolio(newPortfolio)
+              .then(response => {
+                this.portfolio = response.data
+                this.$toast.open('Added ' + value)
+                this.fetchPortfolios()
+              })
+          }
+        })
+      },
+      getPortfolio () {
+        var self = this
+        return ApiService.getPortfolio(self.p_id)
+          .then(response => {
+            console.log('response: ', response)
+            self.genPlot(response.data)
+          }).catch(function (error) {
             console.log(error)
           })
       },
       getPortfolioValue () {
         var self = this
-        axios.get('http://localhost:9000/portfolios/59bffbfbd14be1cc3537235e/value')
-          .then(function (response) {
-            console.log(response)
-            self.genPlot(response)
-          })
-          .catch(function (error) {
+        return ApiService.getPortfolioValue(self.p_id)
+          .then(response => {
+            console.log('response: ', response)
+            self.genPlot(response.data)
+          }).catch(function (error) {
             console.log(error)
           })
       },
-      genPlot (response) {
+      genPlot (data) {
         var self = this
-        if (response.data.total.current > 0) {
-          self.portfolio = response.data
+        if (data.total) {
+          self.portfolio = data
           self.showTotal = 'Profit'
           self.showTotalValue = self.portfolio.total.profit_usd
           self.showTotalCurrentValue = self.portfolio.total.current
@@ -309,7 +380,7 @@
     },
     filters: {
       round (value, decimals) {
-        value = parseInt(value)
+        value = parseFloat(value)
         if (!value) {
           value = 0
         }
