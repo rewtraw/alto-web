@@ -1,9 +1,8 @@
-import Vue from 'vue'
 import axios from 'axios'
 const BASE_URL = process.env.API_URL || 'localhost'
 export default {
-  get () {
-    return Vue.http.get('/api/posts')
+  addUser (newUser) {
+    return axios.post('http://' + BASE_URL + ':9000/users', newUser)
   },
   getPortfolio (pId) {
     return axios.get('http://' + BASE_URL + ':9000/portfolios/' + pId)

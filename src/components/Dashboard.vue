@@ -3,7 +3,11 @@
   <div class="dashboard">
     <section v-if="!portfolios.length" class="section">
       <div class="container has-text-centered">
-        <a @click="addPortfolio" class="button is-primary">New Portfolio</a>
+        <div class="content">
+          <div>
+            <a @click="addPortfolio" class="button is-primary">New Portfolio</a>
+          </div>
+        </div>
       </div>
     </section>
     <section v-if="portfolios.length" class="section">
@@ -81,24 +85,20 @@
           </template>
           <template slot="detail" scope="props">
             <section>
-              <div class="field has-addons has-addons-centered">
-                <p class="control">
+
+
+              <b-field grouped position="is-centered">
+                <b-field>
                   <b-field>
-                    <b-input v-model="props.row.amount"></b-input>
-                    <p class="control">
-                      <span class="button is-static">Amount</span>
-                    </p>
+                    <b-input v-model="props.row.amount" placeholder=""></b-input>
+                    <span class="button is-static">Amount</span>
                   </b-field>
-                </p>
-                <p class="control">
-                  <b-field>
-                    <b-input v-model="props.row.cost_usd"></b-input>
-                    <p class="control">
-                      <span class="button is-static">Cost Each</span>
-                    </p>
-                  </b-field>
-                </p>
-              </div>
+                </b-field>
+                <b-field>
+                  <b-input v-model="props.row.cost_usd"></b-input>
+                  <span class="button is-static">Cost Each</span>
+                </b-field>
+              </b-field>
               <b-field grouped group-multiline position="is-centered">
                 <p class="control">
                   <button v-on:click="saveCoin(props.index, props.row)" class="button is-primary">Save</button>
@@ -127,6 +127,20 @@
       <div class="container plot">
         <div class="columns is-gapless is-centered is-desktop">
           <div v-for="(value, index) in portfolio.plot" class="rotated"><span v-bind:class="change(value, portfolio.plot[index-1])">{{calc(value)}}</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="container has-text-centered">
+        <div class="content">
+          <div>
+            <ul>
+              <li><span class="has-text-danger">@</span> : manage account</li>
+              <li><span class="has-text-warning">!</span> : something else</li>
+              <li><span class="has-text-primary">?</span> : show this helptext</li>
+              <li><span class="has-text-info">+</span> : add new portfolio</li>
+            </ul>
+          </div>
         </div>
       </div>
     </section>
@@ -194,6 +208,8 @@
             if (this.portfolios.length) {
               this.portfolio = response.data[0]
               this.p_id = this.portfolio._id
+              this.getPortfolio()
+              this.getPortfolioValue()
             } else {
               this.noProfile = true
             }
@@ -408,6 +424,10 @@
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
   .dashboard {}
+
+  li {
+    color: grey
+  }
 
   .plot {
     /* left: 0px;

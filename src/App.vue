@@ -11,10 +11,10 @@
               <a class="link is-info">!</a>
             </p>
             <h1 class="logo level-item has-text-centered is-hidden-touch">
-              <b v-on:click="goHome()">Alto!</b>
+              <b v-on:click="goHome()">{{title}}</b>
             </h1>
             <h1 class="logo mobile has-text-centered is-hidden-desktop">
-              <b v-on:click="goHome()">Alto!</b>
+              <b v-on:click="goHome()">{{title}}</b>
             </h1>
             <p class="level-item has-text-centered has-text-primary">
               <a class="link is-info">?</a>
@@ -35,7 +35,9 @@
   export default {
     name: 'app',
     data () {
-      return {}
+      return {
+        title: 'Alto!'
+      }
     },
     created: function () {},
     mounted: function () {},
@@ -118,7 +120,7 @@
     font-size: 30px;
   }
 
-  @media screen and (max-width: 480px) {
+  @media screen and (max-width: 1007px) {
     .hero-body {
       padding: .5rem 0rem 0rem 0rem
     }

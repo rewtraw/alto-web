@@ -1,4 +1,4 @@
 module.exports = {
   NODE_ENV: '"production"',
-  API_URL: '"alto.rewt.co"'
+  API_URL: '"altofol.io"'
 }
