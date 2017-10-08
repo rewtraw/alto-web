@@ -340,6 +340,7 @@
           .then(response => {
             console.log('response: ', response)
             self.genPlot(response.data)
+            this.getPortfolioValue()
           }).catch(function (error) {
             console.log(error)
           })
